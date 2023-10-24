@@ -1,0 +1,11 @@
+[Unit]
+Description = UECS Received data insert to DB
+After = mariadb.service
+
+[Service]
+ExecStart = /usr/local/bin/uecsrxdb
+Restart = always
+Type = simple
+
+[Install]
+WantedBy = multi-user.target
