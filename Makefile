@@ -1,3 +1,5 @@
+CFLAGS = -Wpointer-to-int-cast
+
 all: uecsrxdb
 
 uecsrxdb: rx.o rep.o db.o

@@ -13,8 +13,11 @@
 #define False 0
 #define True  1
 #define LOGFILE "/var/log/uecs/rx.log"
+#define SEMAPD  "/var/log/uecs/semaphore"
 
 volatile sig_atomic_t stopflag = 0;
+static char version[] = "v1.10";
+
 void abrt_handler(int sig);
 
 extern int rep(char *, const char *, const char *, const char *);
@@ -27,15 +30,16 @@ int main(int argc, char* argv[]) {
   socklen_t sin_size;
   struct sockaddr_in from_addr;
  
-  char buf[2048];  // 受信バッファ
-  char dbuf[2048]; // 表示バッファ
-  char cbuf[256];   // check buffer
-  char sqlbuf[256]; // SQL buffer
-  char ipa[30];    // IPアドレスのマッチング
-  char ccm[30];    // CCMのマッチング
+  char buf[2048];           // 受信バッファ
+  char dbuf[2048];          // 表示バッファ
+  char cbuf[256];           // check buffer
+  char sqlbuf[256];         // SQL buffer
+  char ipa[30];             // IPアドレスのマッチング
+  char ccm[30];             // CCMのマッチング
   char ddd[11],tod[9];
-  char *strf[7];     // CCM field
-  int  cnt;        // 受信カウンタ
+  char *strf[7];            // CCM field
+  char semaphore_name[256]; // セマフォパス名
+  int  cnt;                 // 受信カウンタ
   int  rc;
   int  c;
   int  opt_m,opt_s,opt_t,opt_i,opt_c;
@@ -125,6 +129,8 @@ int main(int argc, char* argv[]) {
       sprintf(&sqlbuf[0],"('%s %s',%s,%s,%s,%s,%s,inet_aton('%s'),'%s')",
 	     ddd,tod,strf[1],strf[2],strf[3],strf[4],strf[5],strf[6],strf[0]);
       db_insert(conn,sqlbuf);
+      sprintf(semaphore_name,"%s/%s.semap",SEMAPD,strf[6]);
+      unlink(semaphore_name);
     } else {
       if ( errno == EAGAIN ) continue;
       perror("recvfrom");
