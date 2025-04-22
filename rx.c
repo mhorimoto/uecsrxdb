@@ -14,9 +14,10 @@
 #define True  1
 #define LOGFILE "/var/log/uecs/rx.log"
 #define SEMAPD  "/var/log/uecs/semaphore"
+#define RAMDISK "/var/www/html/public/YSL/ramdisk"
 
 volatile sig_atomic_t stopflag = 0;
-static char version[] = "v1.10";
+static char version[] = "v2.00";
 
 void abrt_handler(int sig);
 
