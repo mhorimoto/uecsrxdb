@@ -1,5 +1,5 @@
 [Unit]
-Description = UECS Received data insert to DB v1.10
+Description = UECS Received data insert to DB v2.00
 After = mariadb.service
 
 [Service]

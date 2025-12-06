@@ -39,6 +39,7 @@ int main(int argc, char* argv[]) {
   char ccm[30];             // CCMのマッチング
   char ddd[11],tod[9];
   char *strf[7];            // CCM field
+  char ccmstatus_name[256]; // CCM データパス名
   char semaphore_name[256]; // セマフォパス名
   int  cnt;                 // 受信カウンタ
   int  rc;
@@ -48,7 +49,8 @@ int main(int argc, char* argv[]) {
   time_t now;
   MYSQL *conn;
   MYSQL_RES *resp;
-  FILE *fp;
+  FILE *fp;                   // for logfile
+  FILE *ccmfp;                // for ccmstatus file
   struct tm *tm_now;
 
   opt_m = False;
@@ -87,12 +89,13 @@ int main(int argc, char* argv[]) {
   if (fp==NULL) {
     printf("log file can not open.\n");
   }
-
+  
   conn = db_init();
   
   while(!stopflag) {
     // 受信 パケットが到着するまでブロック
     // from_addr には、送信元アドレスが格納される
+    sin_size = sizeof(struct sockaddr_in); // ★ ここで sin_size を初期化 ★
     rc = recvfrom(sd, buf, sizeof(buf), MSG_DONTWAIT,
 		  (struct sockaddr *)&from_addr, &sin_size);
     if ( rc > 0 ) {
@@ -127,6 +130,13 @@ int main(int argc, char* argv[]) {
       for(c=1;c<7;c++) {
 	strf[c] = strtok(NULL,",");
       }
+      //          strf[1],strf[2],strf[3],strf[4],strf[6],strf[0]  data is strf[5]
+      // $RAMDISK/ROOM-REGION-ORDER-PRIORITY-IPADDRESS-CCMTYPE.dat
+      sprintf(ccmstatus_name,"%s/%s-%s-%s-%s-%s-%s.dat",RAMDISK,
+      	      strf[1],strf[2],strf[3],strf[4],strf[6],strf[0]);
+      ccmfp = fopen(ccmstatus_name,"w");
+      fprintf(ccmfp,"%s\n",strf[5]);
+      fclose(ccmfp);
       sprintf(&sqlbuf[0],"('%s %s',%s,%s,%s,%s,%s,inet_aton('%s'),'%s')",
 	     ddd,tod,strf[1],strf[2],strf[3],strf[4],strf[5],strf[6],strf[0]);
       db_insert(conn,sqlbuf);
