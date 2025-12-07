@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
-#include <mysql/mysql.h>
+//#include <mysql/mysql.h>
 
 #define False 0
 #define True  1
@@ -17,7 +17,7 @@
 #define RAMDISK "/var/www/html/public/YSL/ramdisk"
 
 volatile sig_atomic_t stopflag = 0;
-static char version[] = "v2.00";
+static char version[] = "v2.00-NoDB";
 
 void abrt_handler(int sig);
 
@@ -26,8 +26,8 @@ extern int rep(char *, const char *, const char *, const char *);
 int main(int argc, char* argv[]) {
   int sd;
   struct sockaddr_in addr;
-  MYSQL *db_init(void);
-  MYSQL_RES *db_insert();
+  //MYSQL *db_init(void);
+  //MYSQL_RES *db_insert();
   socklen_t sin_size;
   struct sockaddr_in from_addr;
  
@@ -47,8 +47,8 @@ int main(int argc, char* argv[]) {
   int  opt_m,opt_s,opt_t,opt_i,opt_c;
   u_int yes = 1;
   time_t now;
-  MYSQL *conn;
-  MYSQL_RES *resp;
+  //  MYSQL *conn;
+  //  MYSQL_RES *resp;
   FILE *fp;                   // for logfile
   FILE *ccmfp;                // for ccmstatus file
   struct tm *tm_now;
@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
  
   // 待ち受けるIPとポート番号を設定
   addr.sin_family = AF_INET;
-  addr.sin_port = htons(16520);
+  addr.sin_port = htons(26520);
   addr.sin_addr.s_addr = INADDR_ANY; // すべてのアドレス宛のパケットを受信する
  
   // バインドする
@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
     printf("log file can not open.\n");
   }
   
-  conn = db_init();
+  // conn = db_init();
   
   while(!stopflag) {
     // 受信 パケットが到着するまでブロック
@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
       fclose(ccmfp);
       sprintf(&sqlbuf[0],"('%s %s',%s,%s,%s,%s,%s,inet_aton('%s'),'%s')",
 	     ddd,tod,strf[1],strf[2],strf[3],strf[4],strf[5],strf[6],strf[0]);
-      db_insert(conn,sqlbuf);
+      //      db_insert(conn,sqlbuf);
       sprintf(semaphore_name,"%s/%s.semap",SEMAPD,strf[6]);
       unlink(semaphore_name);
     } else {
