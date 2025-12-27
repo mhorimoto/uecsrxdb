@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <mysql/mysql.h>
+#include <rrd.h>
 
 #define False 0
 #define True  1
@@ -17,7 +18,7 @@
 #define RAMDISK "/var/www/html/public/YSL/ramdisk"
 
 volatile sig_atomic_t stopflag = 0;
-static char version[] = "v2.00";
+static char version[] = "v2.01";
 
 void abrt_handler(int sig);
 

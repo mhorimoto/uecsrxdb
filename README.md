@@ -1,5 +1,5 @@
 # uecsrxdb
-Server program for UECS data into MariaDB
+Server program for UECS data into MariaDB and High Speed RRD
 
 ## このプログラムの目的
 
@@ -48,6 +48,7 @@ v1.10から採用された、UECSデバイスの死活監視機能のための�
 
 ## 履歴
 
+ * v3.00: RRDCACHE対応のrrdcached
  * v2.00: サーバ上にramdiskを作って即値ファイルを生成するようにした
  * v1.10: 死活監視機能のためのセマフォファイル機能を付加
          受電されたIPアドレスのセマフォファイルを削除します。
