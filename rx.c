@@ -13,18 +13,45 @@
 
 #define False 0
 #define True  1
-#define LOGFILE "/var/log/uecs/rx.log"
-#define SEMAPD  "/var/log/uecs/semaphore"
-#define RAMDISK "/var/www/html/public/YSL/ramdisk"
+#define CONFIG_FILE "/usr/local/etc/uecsrxdb.conf" // 設定ファイル名
 
 volatile sig_atomic_t stopflag = 0;
-static char version[] = "v2.01";
+static char version[] = "v2.10";
+
+// パスを格納するグローバル変数（またはmain内で管理）
+char logfile_path[256];
+char semapd_path[256];
+char ramdisk_path[256];
 
 void abrt_handler(int sig);
-
 extern int rep(char *, const char *, const char *, const char *);
 
+// 設定ファイルを読み込む関数
+void load_config() {
+    FILE *fp = fopen(CONFIG_FILE, "r");
+    if (fp == NULL) {
+        perror("Config file open error");
+        exit(1);
+    }
+
+    char line[512];
+    while (fgets(line, sizeof(line), fp)) {
+        if (line[0] == '#' || line[0] == '\n') continue; // コメントや空行を飛ばす
+        
+        char *key = strtok(line, "=");
+        char *value = strtok(NULL, "\n");
+
+        if (key && value) {
+            if (strcmp(key, "LOGFILE") == 0) strncpy(logfile_path, value, 255);
+            else if (strcmp(key, "SEMAPD") == 0) strncpy(semapd_path, value, 255);
+            else if (strcmp(key, "RAMDISK") == 0) strncpy(ramdisk_path, value, 255);
+        }
+    }
+    fclose(fp);
+}
+
 int main(int argc, char* argv[]) {
+
   int sd;
   struct sockaddr_in addr;
   MYSQL *db_init(void);
@@ -40,8 +67,8 @@ int main(int argc, char* argv[]) {
   char ccm[30];             // CCMのマッチング
   char ddd[11],tod[9];
   char *strf[7];            // CCM field
-  char ccmstatus_name[256]; // CCM データパス名
-  char semaphore_name[256]; // セマフォパス名
+  char ccmstatus_name[512]; // CCM データパス名
+  char semaphore_name[512]; // セマフォパス名
   int  cnt;                 // 受信カウンタ
   int  rc;
   int  c;
@@ -64,6 +91,9 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
+  // 設定の読み込み
+  load_config();
+
   // IPv4 UDP のソケットを作成
   if((sd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     perror("socket");
@@ -74,7 +104,6 @@ int main(int argc, char* argv[]) {
   addr.sin_family = AF_INET;
   addr.sin_port = htons(16520);
   addr.sin_addr.s_addr = INADDR_ANY; // すべてのアドレス宛のパケットを受信する
- 
   // バインドする
   setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
   if(bind(sd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
@@ -85,14 +114,13 @@ int main(int argc, char* argv[]) {
   // 受信バッファの初期化
   memset(buf, 0, sizeof(buf));
 
-  // Open log file for append
-  fp = fopen(LOGFILE,"a");
-  if (fp==NULL) {
-    printf("log file can not open.\n");
+  // 動的に読み込んだ logfile_path を使用
+  fp = fopen(logfile_path, "a");
+  if (fp == NULL) {
+    printf("log file (%s) can not open.\n", logfile_path);
   }
   
   conn = db_init();
-  
   while(!stopflag) {
     // 受信 パケットが到着するまでブロック
     // from_addr には、送信元アドレスが格納される
@@ -100,7 +128,7 @@ int main(int argc, char* argv[]) {
     rc = recvfrom(sd, buf, sizeof(buf), MSG_DONTWAIT,
 		  (struct sockaddr *)&from_addr, &sin_size);
     if ( rc > 0 ) {
-      buf[rc] = (char)NULL;
+      buf[rc] = '\0';
       // 日時生成
       now = time(NULL);
       tm_now = localtime(&now);
@@ -109,7 +137,8 @@ int main(int argc, char* argv[]) {
 
       // Raw output to logfile
       if (fp) {
-	fprintf(fp,"%s %s %s\n",tod,ddd,buf);
+	    fprintf(fp,"%s %s %s\n",tod,ddd,buf);
+        fflush(fp); // バッファを書き出し
       }
       // 不要フィールド削除
       rep(dbuf,buf,"<?xml version=\"1.0\"?><UECS ver=\"1.00-E10\">","");
@@ -131,17 +160,22 @@ int main(int argc, char* argv[]) {
       for(c=1;c<7;c++) {
 	strf[c] = strtok(NULL,",");
       }
-      //          strf[1],strf[2],strf[3],strf[4],strf[6],strf[0]  data is strf[5]
-      // $RAMDISK/ROOM-REGION-ORDER-PRIORITY-IPADDRESS-CCMTYPE.dat
-      sprintf(ccmstatus_name,"%s/%s-%s-%s-%s-%s-%s.dat",RAMDISK,
+
+      // 動的に読み込んだ ramdisk_path を使用
+      sprintf(ccmstatus_name,"%s/%s-%s-%s-%s-%s-%s.dat", ramdisk_path,
       	      strf[1],strf[2],strf[3],strf[4],strf[6],strf[0]);
       ccmfp = fopen(ccmstatus_name,"w");
-      fprintf(ccmfp,"%s\n",strf[5]);
-      fclose(ccmfp);
+      if(ccmfp) {
+        fprintf(ccmfp,"%s\n",strf[5]);
+        fclose(ccmfp);
+      }
+
       sprintf(&sqlbuf[0],"('%s %s',%s,%s,%s,%s,%s,inet_aton('%s'),'%s')",
 	     ddd,tod,strf[1],strf[2],strf[3],strf[4],strf[5],strf[6],strf[0]);
       db_insert(conn,sqlbuf);
-      sprintf(semaphore_name,"%s/%s.semap",SEMAPD,strf[6]);
+
+      // 動的に読み込んだ semapd_path を使用
+      sprintf(semaphore_name,"%s/%s.semap", semapd_path, strf[6]);
       unlink(semaphore_name);
     } else {
       if ( errno == EAGAIN ) continue;
@@ -150,6 +184,7 @@ int main(int argc, char* argv[]) {
   }
   // ソケットのクローズ
   close(sd);
+  if(fp) fclose(fp);
   return 0;
 }
 
