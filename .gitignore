@@ -54,3 +54,4 @@ dkms.conf
 uecsrxdb
 db.patch
 *.bak
+*~
