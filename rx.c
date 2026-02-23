@@ -16,7 +16,7 @@
 #define CONFIG_FILE "/usr/local/etc/uecsrxdb.conf" // 設定ファイル名
 
 volatile sig_atomic_t stopflag = 0;
-static char version[] = "v2.10";
+static char version[] = "v2.20";
 
 // パスを格納するグローバル変数（またはmain内で管理）
 char logfile_path[256];
@@ -87,6 +87,7 @@ int main(int argc, char* argv[]) {
   opt_i = False;
   opt_c = False;
   
+  signal(SIGPIPE, SIG_IGN);
   if ( signal(SIGINT, abrt_handler) == SIG_ERR ) {
     exit(1);
   }

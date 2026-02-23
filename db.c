@@ -23,9 +23,9 @@ MYSQL *db_init(void) {
 
 MYSQL_RES *db_insert(MYSQL *cn,char *str) {
   MYSQL_RES *resp = NULL;
-  char sql_str[256];
+  char sql_str[2048];
 
-  sprintf(sql_str,"INSERT INTO data (tod,room,region,ord,priority,value,ip,ccmtype) values %s",str);
+  snprintf(sql_str,sizeof(sql_str),"INSERT INTO data (tod,room,region,ord,priority,value,ip,ccmtype) values %s",str);
   // Exec query
   if( mysql_query( cn , sql_str ) ){
     // error
@@ -33,8 +33,6 @@ MYSQL_RES *db_insert(MYSQL *cn,char *str) {
     mysql_close(cn);
     exit(-3);
   }
-  // Get response
-  resp = mysql_use_result(cn);
-  return(resp);
+  return NULL;
 }
 
