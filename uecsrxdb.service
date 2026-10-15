@@ -1,10 +1,12 @@
 [Unit]
-Description = UECS Received data insert to DB v2.20
+Description = UECS Received data insert to DB v2.30
 After = mariadb.service
+StartLimitIntervalSec = 0
 
 [Service]
 ExecStart = /usr/local/bin/uecsrxdb
 Restart = always
+RestartSec = 3s
 Type = simple
 
 [Install]

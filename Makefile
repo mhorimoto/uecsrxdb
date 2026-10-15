@@ -17,4 +17,4 @@ install:
 	-mv /usr/local/etc/uecsrxdb.conf /usr/local/etc/uecsrxdb.conf.bak
 	cp uecsrxdb.conf /usr/local/etc/uecsrxdb.conf
 clean:
-	-/bin/rm *.o uecsrxdb *~
+	@/bin/rm *.o uecsrxdb *~

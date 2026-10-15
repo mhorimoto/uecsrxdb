@@ -16,7 +16,7 @@
 #define CONFIG_FILE "/usr/local/etc/uecsrxdb.conf" // 設定ファイル名
 
 volatile sig_atomic_t stopflag = 0;
-static char version[] = "v2.20";
+static char version[] = "v2.30";
 
 // パスを格納するグローバル変数（またはmain内で管理）
 char logfile_path[256];
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
   int sd;
   struct sockaddr_in addr;
   MYSQL *db_init(void);
-  MYSQL_RES *db_insert();
+  int db_insert(MYSQL *, char *);
   socklen_t sin_size;
   struct sockaddr_in from_addr;
  
@@ -154,16 +154,37 @@ int main(int argc, char* argv[]) {
       rep(buf,dbuf,"\">",",");
       strcpy(dbuf,buf);
       // 受信データの出力
-      //      printf("%s\n",dbuf);
-      //      WRadiationSum.mMC,1,1,1,29,6.4,192.168.120.65
-      strncpy(cbuf,dbuf,255);
+      strncpy(cbuf,dbuf,sizeof(cbuf)-1);
+      cbuf[sizeof(cbuf)-1] = '\0';
       strf[0] = strtok(cbuf,",");
-      for(c=1;c<7;c++) {
+      for(c=1; c<7; c++) {
 	strf[c] = strtok(NULL,",");
       }
+      
+      // 不正パケット検証: 7項目揃っていない場合は破棄
+      int valid_packet = 1;
+      for (c=0; c<7; c++) {
+        if (strf[c] == NULL) {
+          valid_packet = 0;
+          break;
+        }
+      }
 
+      if (!valid_packet) {
+        fprintf(stderr, "Invalid packet format skipped: %s\n", dbuf);
+        continue;
+      }
+
+      // DB未接続時の再接続リトライ
+      if (conn == NULL) {
+        conn = db_init();
+        if (conn == NULL) {
+          continue;
+        }
+      }
+      
       // 動的に読み込んだ ramdisk_path を使用
-      sprintf(ccmstatus_name,"%s/%s-%s-%s-%s-%s-%s.dat", ramdisk_path,
+      snprintf(ccmstatus_name,sizeof(ccmstatus_name),"%s/%s-%s-%s-%s-%s-%s.dat", ramdisk_path,
       	      strf[1],strf[2],strf[3],strf[4],strf[6],strf[0]);
       ccmfp = fopen(ccmstatus_name,"w");
       if(ccmfp) {
@@ -171,10 +192,14 @@ int main(int argc, char* argv[]) {
         fclose(ccmfp);
       }
 
-      sprintf(&sqlbuf[0],"('%s %s',%s,%s,%s,%s,%s,inet_aton('%s'),'%s')",
+      snprintf(sqlbuf,sizeof(sqlbuf),"('%s %s',%s,%s,%s,%s,%s,inet_aton('%s'),'%s')",
 	     ddd,tod,strf[1],strf[2],strf[3],strf[4],strf[5],strf[6],strf[0]);
-      db_insert(conn,sqlbuf);
 
+      if (db_insert(conn, sqlbuf) != 0) {
+        fprintf(stderr, "[%s %s] DB insert failed for CCM: %s, IP: %s (SQL values: %s)\n",
+                ddd, tod, strf[0], strf[6], sqlbuf);
+      }
+      
       // 動的に読み込んだ semapd_path を使用
       sprintf(semaphore_name,"%s/%s.semap", semapd_path, strf[6]);
       unlink(semaphore_name);
